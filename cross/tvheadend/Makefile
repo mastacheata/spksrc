@@ -8,7 +8,7 @@ PKG_DIST_SITE = https://github.com/tvheadend
 PKG_DIST_FILE = $(PKG_NAME)-git$(PKG_GIT_HASH).$(PKG_EXT)
 PKG_DIR = $(PKG_NAME)-git*
 
-DEPENDS = cross/openssl
+DEPENDS = cross/openssl cross/ffmpeg
 
 HOMEPAGE = https://www.lonelycoder.com/tvheadend/
 COMMENT  = Tvheadend is a TV streaming server for Linux supporting DVB-S, DVB-S2, DVB-C, DVB-T, ATSC, IPTV, and Analog video (V4L) as input sources
