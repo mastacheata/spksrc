@@ -1,5 +1,5 @@
 SPK_NAME = tvheadend
-SPK_VERS = 3.4.27
+SPK_VERS = 3.9~gitmaster
 SPK_REV = 6
 SPK_ICON = src/tvheadend.png
 DSM_UI_DIR = app
@@ -12,7 +12,7 @@ DESCRIPTION_FRE = Tvheadend est un serveur de streaming pour linux gérant les s
 ADMIN_PORT = 9981
 RELOAD_UI = yes
 DISPLAY_NAME = Tvheadend
-CHANGELOG = "Update to version 3.4.27"
+CHANGELOG = "Update to version 3.9~gitmaster"
 
 HOMEPAGE = https://www.lonelycoder.com/tvheadend/
 LICENSE  =
