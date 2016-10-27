@@ -12,13 +12,23 @@ COMMENT    = Python Programming Language
 LICENSE    =
 
 GNU_CONFIGURE = 1
-ADDITIONAL_CFLAGS = -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 CONFIGURE_ARGS = --enable-ipv6 --without-ensurepip
 
 COMPILE_TARGET = myCompile
+POST_INSTALL_TARGET = myPostInstall
 
 include ../../mk/spksrc.native-cc.mk
 
 .PHONY: myCompile
 myCompile:
 	@$(RUN) $(MAKE) Parser/pgen all
+
+PYTHON = $(WORK_DIR)/install/usr/local/bin/python3
+PIP = $(WORK_DIR)/install/usr/local/bin/pip
+
+.PHONY: myPostInstall
+myPostInstall:
+	@$(MSG) Installing setuptools, pip and cffi
+	@$(RUN) wget https://bootstrap.pypa.io/ez_setup.py -O - | $(PYTHON)
+	@$(RUN) wget https://bootstrap.pypa.io/get-pip.py -O - | $(PYTHON)
+	@$(PIP) install "cffi==1.5.2"

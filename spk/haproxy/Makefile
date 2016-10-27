@@ -1,19 +1,20 @@
 SPK_NAME = haproxy
-SPK_VERS = 1.5.3
-SPK_REV = 15
+SPK_VERS = 1.5.14
+SPK_REV = 19
 SPK_ICON = src/haproxy.png
 DSM_UI_DIR = app
 
 DEPENDS = cross/$(SPK_NAME)
+WHEELS = pyextdirect==0.3.1 flask Werkzeug Jinja2 itsdangerous
 SPK_DEPENDS = "python>2.7.3-3"
 
-MAINTAINER = SynoCommunity
+MAINTAINER = Diaoul
 DESCRIPTION = HAProxy is a free, very fast and reliable solution offering high availability, load balancing, and proxying for TCP and HTTP-based applications.
 DESCRIPTION_FRE = HAProxy est un produit libre, performant et fiable qui permet la haute disponibilité, la répartition de charge et le proxy de services TCP ou HTTP.
 ADMIN_PORT = 8280
 RELOAD_UI = yes
 DISPLAY_NAME = HAProxy
-CHANGELOG = "1. Update to 1.5.3<br>2. Improve default configuration"
+CHANGELOG = "1. Update to 1.5.14<br>2. Added gzip compression support<br>3. Fix listening on <1024 ports"
 
 HOMEPAGE   = http://haproxy.1wt.eu/
 LICENSE    = GNU GPL 2
@@ -32,7 +33,9 @@ POST_STRIP_TARGET = haproxy_extra_install
 include ../../mk/spksrc.spk.mk
 
 .PHONY: haproxy_extra_install
-haproxy_extra_install: $(STAGING_DIR)/share/requirements.pybundle
+haproxy_extra_install:
+	install -m 755 -d ${STAGING_DIR}/share/wheelhouse
+	install -m 644 ${WORK_DIR}/wheelhouse/* ${STAGING_DIR}/share/wheelhouse/
 	install -m 755 -d $(STAGING_DIR)/var
 	install -m 755 -d $(STAGING_DIR)/var/crt
 	install -m 755 -d $(STAGING_DIR)/app
@@ -55,8 +58,3 @@ haproxy_extra_install: $(STAGING_DIR)/share/requirements.pybundle
 		convert $(SPK_ICON) -thumbnail $${size}x$${size} \
 		        $(STAGING_DIR)/app/images/$(SPK_NAME)-$${size}.png ; \
 	done
-
-$(STAGING_DIR)/share/requirements.pybundle:
-	@$(MSG) "Bundling requirements"
-	install -m 755 -d $(STAGING_DIR)/share
-	@cd $(WORK_DIR) && $(PIP) bundle $@ pyextdirect==0.3.1 flask

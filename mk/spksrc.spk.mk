@@ -6,14 +6,34 @@ include ../../mk/spksrc.directories.mk
 NAME = $(SPK_NAME)
 
 ifneq ($(ARCH),)
-SPK_ARCH = $(ARCH)
-ARCH_SUFFIX = -$(ARCH)
+SPK_ARCH = $(TC_ARCH)
+SPK_NAME_ARCH = $(ARCH)
+SPK_TCVERS = $(TCVERSION)
+ARCH_SUFFIX = -$(ARCH)-$(TCVERSION)
 TC = syno$(ARCH_SUFFIX)
 else
 SPK_ARCH = noarch
+SPK_NAME_ARCH = noarch
+SPK_TCVERS = all
 endif
 
-SPK_FILE_NAME = $(PACKAGES_DIR)/$(SPK_NAME)_$(SPK_ARCH)_$(SPK_VERS)-$(SPK_REV).spk
+SPK_FILE_NAME = $(PACKAGES_DIR)/$(SPK_NAME)_$(SPK_NAME_ARCH)-$(SPK_TCVERS)_$(SPK_VERS)-$(SPK_REV).spk
+
+#####
+
+# Check if package supports ARCH
+ifneq ($(UNSUPPORTED_ARCHS),)
+  ifneq (,$(findstring $(ARCH),$(UNSUPPORTED_ARCHS)))
+    @$(error Arch '$(ARCH)' is not a supported architecture )
+  endif
+endif
+
+# Check minimum DSM requirements of package
+ifneq ($(REQUIRED_DSM),)
+  ifneq ($(REQUIRED_DSM),$(firstword $(sort $(TCVERSION) $(REQUIRED_DSM))))
+    @$(error Toolchain $(TCVERSION) is lower than required version in Makefile $(REQUIRED_DSM) )
+  endif
+endif
 
 #####
 
@@ -38,7 +58,7 @@ $(WORK_DIR)/package.tgz: strip
 	@[ -f $@ ] && rm $@ || true
 	(cd $(STAGING_DIR) && tar cpzf $@ --owner=root --group=root *)
 
-$(WORK_DIR)/INFO: Makefile $(SPK_ICON)
+$(WORK_DIR)/INFO:
 	$(create_target_dir)
 	@$(MSG) "Creating INFO file for $(SPK_NAME)"
 	@echo package=\"$(SPK_NAME)\" > $@
@@ -50,22 +70,25 @@ $(WORK_DIR)/INFO: Makefile $(SPK_ICON)
 	   ) \
 	) | sed 's|"\s|"\n|' >> $@
 	@echo arch=\"$(SPK_ARCH)\" >> $@
-	@echo distributor=\"SynoCommunity\" >> $@
-	@echo distributor_url=\"http://synocommunity.com\" >> $@
-ifeq ($(strip $(MAINTAINER)),SynoCommunity)
-	@echo maintainer=\"SynoCommunity\" >> $@
-	@echo maintainer_url=\"http://synocommunity.com\" >> $@
+ifneq ($(strip $(MAINTAINER)),)
+	@echo maintainer=\"$(MAINTAINER)\" >> $@
 else
-	@echo maintainer=\"SynoCommunity/$(MAINTAINER)\" >> $@
-	@echo maintainer_url=\"http://synocommunity.com/developers/$(MAINTAINER)\" >> $@
+	$(error Set MAINTAINER in local.mk)
 endif
+	@echo maintainer_url=\"$(MAINTAINER_URL)\" >> $@
+	@echo distributor=\"$(DISTRIBUTOR)\" >> $@
+	@echo distributor_url=\"$(DISTRIBUTOR_URL)\" >> $@
 ifneq ($(strip $(FIRMWARE)),)
 	@echo firmware=\"$(FIRMWARE)\" >> $@
 else
+  ifneq ($(strip $(TC_FIRMWARE)),)
+	@echo firmware=\"$(TC_FIRMWARE)\" >> $@
+  else
 	@echo firmware=\"3.1-1594\" >> $@
+  endif
 endif
 ifneq ($(strip $(BETA)),)
-	@echo report_url=\"https://github.com/SynoCommunity/spksrc/issues\" >> $@
+	@echo report_url=\"$(REPORT_URL)\" >> $@
 endif
 ifneq ($(strip $(HELPURL)),)
 	@echo helpurl=\"$(HELPURL)\" >> $@
@@ -111,14 +134,14 @@ endif
 ifneq ($(strip $(CONF_DIR)),)
 	@echo support_conf_folder=\"yes\" >> $@
 endif
-	@echo md5=\"`md5sum $(WORK_DIR)/package.tgz | cut -d" " -f1)`\" >> $@
+	@echo checksum=\"`md5sum $(WORK_DIR)/package.tgz | cut -d" " -f1`\" >> $@
 ifneq ($(strip $(DEBUG)),)
 INSTALLER_OUTPUT = >> /root/$${PACKAGE}-$${SYNOPKG_PKG_STATUS}.log 2>&1
 else
 INSTALLER_OUTPUT = > $$SYNOPKG_TEMP_LOGFILE
 endif
 ifneq ($(strip $(SPK_CONFLICT)),)
-@echo install_conflict_packages=\"$(SPK_CONFLICT)\" >> $@
+	@echo install_conflict_packages=\"$(SPK_CONFLICT)\" >> $@
 endif
 
 # Wizard
@@ -155,13 +178,13 @@ $(DSM_LICENSE_FILE): $(LICENSE_FILE)
 	@$(dsm_license_copy)
 
 # Package Icons
-$(WORK_DIR)/PACKAGE_ICON.PNG:
+$(WORK_DIR)/PACKAGE_ICON.PNG: $(SPK_ICON)
 	$(create_target_dir)
 	@$(MSG) "Creating PACKAGE_ICON.PNG for $(SPK_NAME)"
 	@[ -f $@ ] && rm $@ || true
 	(convert $(SPK_ICON) -thumbnail 72x72 - >> $@)
 
-$(WORK_DIR)/PACKAGE_ICON_120.PNG:
+$(WORK_DIR)/PACKAGE_ICON_120.PNG: $(SPK_ICON)
 	$(create_target_dir)
 	@$(MSG) "Creating PACKAGE_ICON_120.PNG for $(SPK_NAME)"
 	@[ -f $@ ] && rm $@ || true
@@ -217,17 +240,17 @@ $(DSM_SCRIPTS_DIR)/start-stop-status: $(SSS_SCRIPT)
 	@$(dsm_script_copy)
 $(DSM_SCRIPTS_DIR)/installer: $(INSTALLER_SCRIPT)
 	@$(dsm_script_copy)
-$(DSM_SCRIPTS_DIR)/%: $(filter %.sc,$(FWPORTS))
-	@$(dsm_script_copy)	
+$(DSM_SCRIPTS_DIR)/%.sc: $(filter %.sc,$(FWPORTS))
+	@$(dsm_script_copy)
 $(DSM_SCRIPTS_DIR)/%: $(filter %.sh,$(ADDITIONAL_SCRIPTS))
 	@$(dsm_script_copy)
 
 SPK_CONTENT = package.tgz INFO PACKAGE_ICON.PNG PACKAGE_ICON_120.PNG scripts
 
-.PHONY: md5
-md5:
+.PHONY: checksum
+checksum:
 	@$(MSG) "Creating checksum for $(SPK_NAME)"
-	@sed -i -e "s|md5=\".*|md5=\"`md5sum $(WORK_DIR)/package.tgz | cut -d" " -f1)`\"|g" $(WORK_DIR)/INFO
+	@sed -i -e "s|checksum=\".*|checksum=\"`md5sum $(WORK_DIR)/package.tgz | cut -d" " -f1`\"|g" $(WORK_DIR)/INFO
 
 .PHONY: wizards
 wizards:
@@ -253,7 +276,7 @@ ifneq ($(strip $(DSM_LICENSE)),)
 SPK_CONTENT += LICENSE
 endif
 
-$(SPK_FILE_NAME): $(WORK_DIR)/package.tgz $(WORK_DIR)/INFO md5 $(WORK_DIR)/PACKAGE_ICON.PNG $(WORK_DIR)/PACKAGE_ICON_120.PNG $(DSM_SCRIPTS) wizards $(DSM_LICENSE) conf
+$(SPK_FILE_NAME): $(WORK_DIR)/package.tgz $(WORK_DIR)/INFO checksum $(WORK_DIR)/PACKAGE_ICON.PNG $(WORK_DIR)/PACKAGE_ICON_120.PNG $(DSM_SCRIPTS) wizards $(DSM_LICENSE) conf
 	$(create_target_dir)
 	(cd $(WORK_DIR) && tar cpf $@ --group=root --owner=root $(SPK_CONTENT))
 
@@ -264,11 +287,10 @@ publish: package
 ifeq ($(PUBLISH_URL),)
 	$(error Set PUBLISH_URL in local.mk)
 endif
-ifeq ($(PUBLISH_AUTH_TOKEN),)
-	$(error Set PUBLISH_AUTH_TOKEN in local.mk)
+ifeq ($(PUBLISH_API_KEY),)
+	$(error Set PUBLISH_API_KEY in local.mk)
 endif
-	http POST $(PUBLISH_URL)/packages Authentication-Token:$(PUBLISH_AUTH_TOKEN) \
-	    @$(SPK_FILE_NAME)
+	http --verify=no --auth $(PUBLISH_API_KEY): POST $(PUBLISH_URL)/packages @$(SPK_FILE_NAME)
 
 
 ### Clean rules
@@ -276,10 +298,6 @@ clean:
 	rm -fr work work-*
 
 all: package
-
-
-SUPPORTED_TCS = $(notdir $(wildcard ../../toolchains/syno-*))
-SUPPORTED_ARCHS = $(notdir $(subst -,/,$(SUPPORTED_TCS)))
 
 dependency-tree:
 	@echo `perl -e 'print "\\\t" x $(MAKELEVEL),"\n"'`+ $(NAME)
@@ -289,18 +307,135 @@ dependency-tree:
 	done
 
 .PHONY: all-archs
-all-archs: $(addprefix arch-,$(SUPPORTED_ARCHS))
+all-archs: $(addprefix arch-,$(AVAILABLE_ARCHS))
 
 .PHONY: publish-all-archs
-publish-all-archs: $(addprefix publish-arch-,$(SUPPORTED_ARCHS))
+publish-all-archs: $(addprefix publish-arch-,$(AVAILABLE_ARCHS))
+
+####
+
+all-supported:
+	@$(MSG) Build supported archs
+	@if $(MAKE) kernel-required >/dev/null 2>&1 ; then \
+	  for arch in $(sort $(basename $(subst -,.,$(basename $(subst .,,$(ARCHS_DUPES)))))) ; \
+	  do \
+	    $(MAKE) latest-arch-$$arch ; \
+	  done \
+	else \
+	  for arch in $(sort $(basename $(subst -,.,$(basename $(subst .,,$(ARCHS_NO_KRNLSUPP)))))) ; \
+	  do \
+	    $(MAKE) latest-arch-$$arch ; \
+	  done \
+	fi
+
+publish-all-supported:
+	@$(MSG) Publish supported archs
+	@if $(MAKE) kernel-required >/dev/null 2>&1 ; then \
+	  for arch in $(sort $(basename $(subst -,.,$(basename $(subst .,,$(ARCHS_DUPES)))))) ; \
+	  do \
+	    $(MAKE) publish-latest-arch-$$arch ; \
+	  done \
+	else \
+	  for arch in $(sort $(basename $(subst -,.,$(basename $(subst .,,$(ARCHS_NO_KRNLSUPP)))))) ; \
+	  do \
+	    $(MAKE) publish-latest-arch-$$arch ; \
+	  done \
+	fi
+
+all-legacy: $(addprefix arch-,$(LEGACY_ARCHS))
+	$(MAKE) all-toolchain-4.3
+	@$(MSG) Built legacy archs
+
+publish-all-legacy: $(addprefix publish-arch-,$(LEGACY_ARCHS))
+	$(MAKE) all-toolchain-4.3
+	@$(MSG) Published legacy archs
+
+####
+
+all-archs-latest:
+	@$(MSG) Build all archs with latest DSM per FIRMWARE
+	@if $(MAKE) kernel-required >/dev/null 2>&1 ; then \
+	  $(MSG) Skipping duplicate arches; \
+	  for arch in $(sort $(basename $(ARCHS_DUPES))) ; \
+	  do \
+	    $(MAKE) latest-arch-$$arch ; \
+	  done \
+	else \
+	  $(MSG) Skipping arches without kernelsupport ; \
+	  for arch in $(sort $(basename $(ARCHS_NO_KRNLSUPP))) ; \
+	  do \
+	    $(MAKE) latest-arch-$$arch ; \
+	  done \
+	fi
+
+publish-all-archs-latest:
+	@$(MSG) Publish all archs with latest DSM per FIRMWARE
+	@if $(MAKE) kernel-required >/dev/null 2>&1 ; then \
+	  $(MSG) Skipping duplicate arches; \
+	  for arch in $(sort $(basename $(ARCHS_DUPES))) ; \
+	  do \
+	    $(MAKE) publish-latest-arch-$$arch ; \
+	  done \
+	else \
+	  $(MSG) Skipping arches without kernelsupport ; \
+	  for arch in $(sort $(basename $(ARCHS_NO_KRNLSUPP))) ; \
+	  do \
+	    $(MAKE) publish-latest-arch-$$arch ; \
+	  done \
+	fi
+
+####
+
+latest-arch-%:
+	@$(MSG) Building package for arch $* with latest available toolchain
+	-@MAKEFLAGS= $(MAKE) ARCH=$(basename $(subst -,.,$*)) TCVERSION=$(notdir $(subst -,/,$(sort $(filter %$(lastword $(notdir $(subst -,/,$(sort $(filter $*%, $(AVAILABLE_ARCHS)))))),$(sort $(filter $*%, $(AVAILABLE_ARCHS)))))))
+
+publish-latest-arch-%:
+	@$(MSG) Building package for arch $* with latest available toolchain
+	-@MAKEFLAGS= $(MAKE) ARCH=$(basename $(subst -,.,$*)) TCVERSION=$(notdir $(subst -,/,$(sort $(filter %$(lastword $(notdir $(subst -,/,$(sort $(filter $*%, $(AVAILABLE_ARCHS)))))),$(sort $(filter $*%, $(AVAILABLE_ARCHS))))))) publish
+
+####
+
+all-toolchain-%:
+	@$(MSG) Built packages for toolchain $*
+	@for arch in $(sort $(basename $(subst -,.,$(basename $(subst .,,$(filter %$*, $(AVAILABLE_ARCHS))))))) ; \
+	do \
+	  $(MAKE) arch-$$arch-$* ; \
+	done \
+
+publish-all-toolchain-%:
+	@$(MSG) Built packages for toolchain $*
+	@for arch in $(sort $(basename $(subst -,.,$(basename $(subst .,,$(filter %$*, $(AVAILABLE_ARCHS))))))) ; \
+	do \
+	  $(MAKE) publish-arch-$$arch-$* ; \
+	done \
+
+####
 
 arch-%:
 	@$(MSG) Building package for arch $*
-	-@MAKEFLAGS= $(MAKE) ARCH=$*
+	-@MAKEFLAGS= $(MAKE) ARCH=$(basename $(subst -,.,$(basename $(subst .,,$*)))) TCVERSION=$(if $(findstring $*,$(basename $(subst -,.,$(basename $(subst .,,$*))))),$(DEFAULT_TC),$(notdir $(subst -,/,$*)))
 
 publish-arch-%:
 	@$(MSG) Building and publishing package for arch $*
-	-@MAKEFLAGS= $(MAKE) ARCH=$* publish
+	-@MAKEFLAGS= $(MAKE) ARCH=$(basename $(subst -,.,$(basename $(subst .,,$*)))) TCVERSION=$(if $(findstring $*,$(basename $(subst -,.,$(basename $(subst .,,$*))))),$(DEFAULT_TC),$(notdir $(subst -,/,$*))) publish
+
+####
 
 changelog:
 	@echo $(shell git log --pretty=format:"- %s" -- $(PWD))
+
+####
+
+.PHONY: kernel-required
+kernel-required:
+	@if [ -n "$(REQ_KERNEL)" ]; then \
+	  exit 1 ; \
+	fi
+	@for depend in $(DEPENDS) ; do \
+	  if $(MAKE) --no-print-directory -C ../../$$depend kernel-required >/dev/null 2>&1 ; then \
+	    exit 0 ; \
+	  else \
+	    exit 1 ; \
+	  fi ; \
+	done

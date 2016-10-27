@@ -1,6 +1,6 @@
 SPK_NAME = zsh
-SPK_VERS = 5.0.5
-SPK_REV = 1
+SPK_VERS = 5.2
+SPK_REV = 3
 SPK_ICON = src/zsh.png
 
 DEPENDS = cross/$(SPK_NAME)
@@ -11,14 +11,13 @@ DESCRIPTION_FRE = Zsh est un shell conçu pour un usage intéractif, mais il est
 RELOAD_UI = no
 DISPLAY_NAME = Z shell
 STARTABLE = no
-BETA = 1
+CHANGELOG = "Update to 5.2"
 
-HOMEPAGE   = http://www.zsh.org/
-LICENSE    = Custom
+HOMEPAGE = http://www.zsh.org
+LICENSE = Custom
 
 INSTALLER_SCRIPT = src/installer.sh
 SSS_SCRIPT       = src/dsm-control.sh
-ADDITIONAL_SCRIPTS = 
 
 INSTALL_PREFIX = /usr/local/$(SPK_NAME)
 

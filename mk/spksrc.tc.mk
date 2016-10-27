@@ -11,8 +11,9 @@ include ../../mk/spksrc.directories.mk
 URLS          = $(TC_DIST_SITE)/$(TC_DIST_NAME)
 NAME          = $(TC_NAME)
 COOKIE_PREFIX = $(TC_NAME)-
-DIST_FILE     = $(DISTRIB_DIR)/$(TC_DIST_NAME)
+DIST_FILE     = $(TOOLCHAINS_DIR)/$(TC_VERS)/$(TC_DIST_NAME)
 DIST_EXT      = $(TC_EXT)
+DISTRIB_DIR   = $(TOOLCHAINS_DIR)/$(TC_VERS)
 
 #####
 
@@ -75,6 +76,8 @@ tc_vars: patch
 	@echo CPPFLAGS := $(CPPFLAGS) $$\(ADDITIONAL_CPPFLAGS\)
 	@echo CXXFLAGS := $(CXXFLAGS) $$\(ADDITIONAL_CXXFLAGS\)
 	@echo LDFLAGS := $(LDFLAGS) $$\(ADDITIONAL_LDFLAGS\)
+	@echo TC_FIRMWARE := $(TC_FIRMWARE)
+	@echo TC_ARCH := $(TC_ARCH)
 
 
 ### Clean rules
@@ -83,7 +86,7 @@ clean:
 
 $(DIGESTS_FILE):
 	@$(MSG) "Generating digests for $(TC_NAME)"
-	@touch -f $@
+	@rm -f $@ && touch -f $@
 	@for type in SHA1 SHA256 MD5; do \
 	  case $$type in \
 	    SHA1|sha1)     tool=sha1sum ;; \
